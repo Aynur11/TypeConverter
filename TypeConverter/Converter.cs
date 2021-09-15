@@ -11,6 +11,8 @@ namespace TypeConverter
     /// </summary>
     public class StringConverter
     {
+        private const string ErrorMessage = "Входное чило вероятно имеет неверный формат. Проверьте вводимое число на корректность.";
+
         private Dictionary<int, char> DigitCharCompliance { get; set; }
 
         public StringConverter()
@@ -40,6 +42,9 @@ namespace TypeConverter
             List<double> digitsFractionalPart = new List<double>();
 
             bool hasMetPoint = false;
+            bool hasMetMinusSign = false;
+            bool hasMetPlusSign = false;
+            bool hasMetNumber = false;
             bool isKnownSymbol = false;
             foreach (var digit in charDigits)
             {
@@ -49,21 +54,35 @@ namespace TypeConverter
                     {
                         digitsIntPart.Add(keyValuePair.Key);
                         isKnownSymbol = true;
+                        hasMetNumber = true;
                         break;
                     }
                     if (digit == keyValuePair.Value && hasMetPoint)
                     {
                         digitsFractionalPart.Add(keyValuePair.Key);
                         isKnownSymbol = true;
+                        hasMetNumber = true;
                         break;
                     }
                     if (digit == '.')
                     {
                         if (hasMetPoint)
                         {
-                            throw new FormatException("Входное чило вероятно имеет неверный формат. Проверьте вводимое число на корректность.");
+                            throw new FormatException(ErrorMessage);
                         }
                         hasMetPoint = true;
+                        isKnownSymbol = true;
+                        break;
+                    }
+                    if (digit == '+' && !hasMetPlusSign && !hasMetNumber)
+                    {
+                        hasMetPlusSign = true;
+                        isKnownSymbol = true;
+                        break;
+                    }
+                    if (digit == '-' && !hasMetMinusSign && !hasMetNumber)
+                    {
+                        hasMetMinusSign = true;
                         isKnownSymbol = true;
                         break;
                     }
@@ -71,15 +90,23 @@ namespace TypeConverter
                 }
                 if (!isKnownSymbol)
                 {
-                    throw new FormatException("Входное чило вероятно имеет неверный формат. Проверьте вводимое число на корректность.");
+                    throw new FormatException(ErrorMessage);
                 }
+            }
+            if(hasMetPlusSign && hasMetMinusSign)
+            {
+                throw new FormatException(ErrorMessage);
             }
 
             double numberIntPart = MakeSingleNumberFromList(digitsIntPart);
             double numberFractionalPart = MakeSingleNumberFromList(digitsFractionalPart);
-            numberFractionalPart /= Math.Pow(10, digitsFractionalPart.Count); 
-
-            return numberIntPart + numberFractionalPart;
+            numberFractionalPart /= Math.Pow(10, digitsFractionalPart.Count);
+            double resultNumber = numberIntPart + numberFractionalPart;
+            if (hasMetMinusSign)
+            {
+                resultNumber *= -1;
+            }
+            return resultNumber;
         }
 
         private static double MakeSingleNumberFromList(List<double> digitsIntPart)
